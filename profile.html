@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Atlas — Developer Profile & JavaScript DOM Architecture</title>
+  <!-- Load Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            atlas: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              200: '#bae0fd',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+              950: '#082f49',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Presentation Animations & Styling */
+    :root {
+      --slide-transition: 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    body {
+      overflow-x: hidden;
+    }
+
+    /* Slide visibility and transitions */
+    .slide-section {
+      display: none;
+      opacity: 0;
+      transform: translateY(18px) scale(0.985);
+      transition: opacity var(--slide-transition), transform var(--slide-transition);
+    }
+
+    .slide-section.active {
+      display: block;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    /* Staggered Entrance Animations for Slide Items */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .slide-section.active .stagger-1 { animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both; }
+    .slide-section.active .stagger-2 { animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both; }
+    .slide-section.active .stagger-3 { animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both; }
+    .slide-section.active .stagger-4 { animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.32s both; }
+    .slide-section.active .stagger-5 { animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.40s both; }
+
+    /* Interactive DOM Node Connector Lines */
+    .dom-node-btn {
+      transition: all 0.25s ease;
+    }
+    .dom-node-btn.selected-node {
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.45);
+      transform: translateY(-2px);
+    }
+
+    /* Subtle Ambient Background Grid */
+    .bg-grid-pattern {
+      background-size: 32px 32px;
+      background-image: 
+        linear-gradient(to right, rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+    }
+
+    /* Custom Scrollbar for Table & Code View */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.5);
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans min-h-screen flex flex-col bg-grid-pattern selection:bg-sky-500 selection:text-white transition-colors duration-300">
+
+  <!-- Top Progress Indicator Bar -->
+  <div class="fixed top-0 left-0 right-0 h-1 bg-slate-200 dark:bg-slate-800 z-50" role="progressbar" aria-label="Presentation slide progress" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1" id="top-progress-container">
+    <div id="slide-progress-bar" class="h-full bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 transition-all duration-300" style="width: 20%;"></div>
+  </div>
+
+  <!-- Formal Enterprise Header / Navigation Bar -->
+  <header class="sticky top-0 z-40 backdrop-blur-md bg-white/85 dark:bg-slate-900/85 border-b border-slate-200/80 dark:border-slate-800/80 px-4 sm:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand / Project Atlas Identity -->
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-sm shadow-sky-500/20">
+          <i class="fa-solid fa-layer-group text-sm" aria-hidden="true"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold tracking-tight text-slate-900 dark:text-white text-sm sm:text-base">PROJECT ATLAS</span>
+            <span class="text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950/90 text-sky-700 dark:text-sky-300 border border-sky-300/50 dark:border-sky-800 font-semibold">feature/profile-card</span>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Developer Profile &amp; JavaScript DOM Technical Deck</p>
+        </div>
+      </div>
+
+      <!-- Direct Slide Navigation Pills -->
+      <nav aria-label="Slide Deck Navigation" class="hidden lg:flex items-center gap-1 bg-slate-100 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
+        <button type="button" onclick="goToSlide(0)" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" data-slide="0">
+          1. Profile Card
+        </button>
+        <button type="button" onclick="goToSlide(1)" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" data-slide="1">
+          2. What is DOM?
+        </button>
+        <button type="button" onclick="goToSlide(2)" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" data-slide="2">
+          3. Core Concepts
+        </button>
+        <button type="button" onclick="goToSlide(3)" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" data-slide="3">
+          4. DOM Table
+        </button>
+        <button type="button" onclick="goToSlide(4)" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" data-slide="4">
+          5. Live Sandbox
+        </button>
+      </nav>
+
+      <!-- Utility Actions: Customize Profile, Theme Toggle, Fullscreen -->
+      <div class="flex items-center gap-2">
+        <button 
+          type="button" 
+          onclick="toggleSpeakerNotes()" 
+          id="notes-toggle-btn"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition"
+          aria-label="Toggle presenter speaker notes"
+          aria-expanded="false">
+          <i class="fa-solid fa-comment-dots text-indigo-500" aria-hidden="true"></i>
+          <span class="hidden sm:inline">Speaker Notes</span>
+        </button>
+
+        <button 
+          type="button" 
+          onclick="openCustomizeModal()" 
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition"
+          aria-label="Customize developer profile information">
+          <i class="fa-solid fa-user-pen text-sky-500" aria-hidden="true"></i>
+          <span class="hidden sm:inline">Customize Profile</span>
+        </button>
+
+        <button 
+          type="button" 
+          onclick="toggleTheme()" 
+          class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition"
+          aria-label="Toggle color theme">
+          <i id="theme-icon" class="fa-solid fa-sun text-amber-400" aria-hidden="true"></i>
+        </button>
+
+        <button 
+          type="button" 
+          onclick="toggleFullScreen()" 
+          class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition hidden sm:inline-flex"
+          aria-label="Toggle fullscreen presentation mode"
+          title="Fullscreen Mode (F)">
+          <i id="fullscreen-icon" class="fa-solid fa-expand text-xs" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Presentation Stage -->
+  <main class="flex-1 flex flex-col justify-center max-w-7xl w-full mx-auto px-4 sm:px-8 py-6 sm:py-10 relative">
+
+    <!-- ================================================================= -->
+    <!-- SLIDE 1: PROJECT ATLAS DEVELOPER PROFILE CARD (ASSIGNMENT CORE)   -->
+    <!-- ================================================================= -->
+    <section id="slide-0" class="slide-section active" aria-labelledby="slide-0-heading">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        
+        <!-- Left Column: Formal Profile Card Component (Meets all Assignment Criteria) -->
+        <div class="lg:col-span-5 stagger-1">
+          <article class="profile-card relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xl shadow-slate-900/5 dark:shadow-black/40 overflow-hidden transition-all duration-300" aria-label="Developer Profile Card">
+            
+            <!-- Card Top Banner -->
+            <div class="h-28 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 relative p-4 flex justify-between items-start">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/15 text-white backdrop-blur-md">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Project Atlas Core Team
+              </span>
+              <span class="text-white/80 font-mono text-xs">#ATLAS-DEV-01</span>
+            </div>
+
+            <!-- Avatar & Main Identity -->
+            <div class="px-6 pb-7 pt-0 relative">
+              <div class="flex justify-between items-end -mt-12 mb-4">
+                <div id="profile-avatar" class="w-24 h-24 rounded-2xl bg-slate-900 dark:bg-slate-800 border-4 border-white dark:border-slate-900 shadow-md flex items-center justify-center text-2xl font-extrabold text-sky-400 select-none">
+                  HA
+                </div>
+                <span class="text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-2.5 py-1 rounded-md font-medium">
+                  <i class="fa-solid fa-check-double mr-1" aria-hidden="true"></i>PR Reviewed
+                </span>
+              </div>
+
+              <!-- Required 1: Developer Name -->
+              <h1 id="slide-0-heading" class="profile-name text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                Harshit
+              </h1>
+
+              <!-- Required 2: Developer Role -->
+              <p id="profile-role-display" class="profile-role text-sm font-semibold text-sky-600 dark:text-sky-400 mt-0.5 mb-4">
+                Frontend &amp; CS Engineering Developer (Project Atlas)
+              </p>
+
+              <!-- Required 3: Short Introduction -->
+              <p id="profile-bio-display" class="profile-bio text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+                Focused on engineering accessible, high-performance user interfaces and scalable web architectures for Project Atlas using semantic HTML5, modern CSS layout systems, and reactive JavaScript DOM APIs.
+              </p>
+
+              <!-- Required 4: Three Core Skills (Semantic Unordered List) -->
+              <div class="mb-6">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2.5">
+                  Core Technical Skills
+                </h2>
+                <ul id="profile-skills-list" class="skills-list flex flex-wrap gap-2" aria-label="Developer technical skills">
+                  <li class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/70 flex items-center gap-1.5">
+                    <i class="fa-brands fa-html5 text-orange-500" aria-hidden="true"></i>
+                    <span>HTML5 &amp; CSS Grid/Flexbox</span>
+                  </li>
+                  <li class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border border-sky-200/70 dark:border-sky-800/70 flex items-center gap-1.5">
+                    <i class="fa-brands fa-js text-amber-500" aria-hidden="true"></i>
+                    <span>JavaScript &amp; TypeScript</span>
+                  </li>
+                  <li class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/70 flex items-center gap-1.5">
+                    <i class="fa-brands fa-git-alt text-rose-500" aria-hidden="true"></i>
+                    <span>Git &amp; Linux CLI</span>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Required 5: GitHub or Portfolio Link with Accessible ARIA Label (Task 4 & 5 Fix Included) -->
+              <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-3">
+                <a 
+                  id="profile-link-el"
+                  href="https://github.com/harxhit8-stack" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  aria-label="Visit Harshit's GitHub profile (opens in a new tab)"
+                  class="profile-link flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-sky-600 dark:hover:bg-sky-500 text-white font-semibold text-sm shadow-sm transition">
+                  <i class="fa-brands fa-github text-base" aria-hidden="true"></i>
+                  <span>View GitHub Profile</span>
+                  <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-75" aria-hidden="true"></i>
+                </a>
+                <button 
+                  type="button"
+                  onclick="goToSlide(1)"
+                  class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-sky-700 dark:text-sky-300 font-semibold text-sm border border-sky-200 dark:border-slate-700 transition">
+                  <span>Start Deck</span>
+                  <i class="fa-solid fa-arrow-right text-xs" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- Right Column: Presentation Deck Overview & Assignment Verification -->
+        <div class="lg:col-span-7 space-y-6">
+          <div class="stagger-2">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-600 dark:text-sky-400 text-xs font-semibold mb-3">
+              <i class="fa-solid fa-laptop-code" aria-hidden="true"></i>
+              <span>Interactive Technical Presentation &bull; 5 Slides</span>
+            </div>
+            <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+              Mastering the JavaScript <span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-indigo-500">Document Object Model</span>
+            </h2>
+            <p class="mt-3 text-base text-slate-600 dark:text-slate-300 leading-relaxed">
+              Welcome to the Project Atlas engineering presentation. Alongside the team profile component on the left, this interactive deck covers how browsers construct the DOM tree, essential manipulation patterns, a structured API reference table, and a live sandbox.
+            </p>
+          </div>
+
+          <!-- Deck Agenda Bullet Points -->
+          <div class="bg-white/80 dark:bg-slate-900/80 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 stagger-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
+              Presentation Agenda &amp; Quick Jump
+            </h3>
+            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <li onclick="goToSlide(1)" class="cursor-pointer group p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-sky-50 dark:hover:bg-sky-950/40 border border-slate-200/60 dark:border-slate-700/60 transition flex items-start gap-3">
+                <span class="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 font-mono text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-sky-500 group-hover:text-white transition">02</span>
+                <div>
+                  <p class="font-semibold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400">DOM Architecture &amp; Tree</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">Interactive node hierarchy &amp; parsing</p>
+                </div>
+              </li>
+              <li onclick="goToSlide(2)" class="cursor-pointer group p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-sky-50 dark:hover:bg-sky-950/40 border border-slate-200/60 dark:border-slate-700/60 transition flex items-start gap-3">
+                <span class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-mono text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-indigo-500 group-hover:text-white transition">03</span>
+                <div>
+                  <p class="font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">Bulleted Core Principles</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">State, events, traversal &amp; reflows</p>
+                </div>
+              </li>
+              <li onclick="goToSlide(3)" class="cursor-pointer group p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-sky-50 dark:hover:bg-sky-950/40 border border-slate-200/60 dark:border-slate-700/60 transition flex items-start gap-3">
+                <span class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-emerald-500 group-hover:text-white transition">04</span>
+                <div>
+                  <p class="font-semibold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400">DOM API Reference Table</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">Filterable methods, syntax &amp; returns</p>
+                </div>
+              </li>
+              <li onclick="goToSlide(4)" class="cursor-pointer group p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-sky-50 dark:hover:bg-sky-950/40 border border-slate-200/60 dark:border-slate-700/60 transition flex items-start gap-3">
+                <span class="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-amber-500 group-hover:text-white transition">05</span>
+                <div>
+                  <p class="font-semibold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400">Live DOM Playground</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">Real-time manipulation &amp; PR workflow</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- GitHub PR Verification Status Banner -->
+          <div class="stagger-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <i class="fa-solid fa-shield-check" aria-hidden="true"></i>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-emerald-900 dark:text-emerald-300">Project Atlas Assignment Criteria Verified</p>
+                <p class="text-xs text-emerald-700 dark:text-emerald-400/90">Contains Name, Role, Short Bio, 3 Skills, Accessible GitHub Link (`aria-label`), Bullet Lists &amp; DOM Table.</p>
+              </div>
+            </div>
+            <span class="text-xs font-mono px-2.5 py-1 rounded bg-white/70 dark:bg-slate-900/70 text-slate-700 dark:text-slate-300">
+              Use <kbd class="font-bold">←</kbd> <kbd class="font-bold">→</kbd> keys to present
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SLIDE 2: WHAT IS THE JAVASCRIPT DOM? (BULLETS + INTERACTIVE TREE) -->
+    <!-- ================================================================= -->
+    <section id="slide-1" class="slide-section" aria-labelledby="slide-1-heading">
+      <div class="mb-6 stagger-1">
+        <span class="text-xs font-mono uppercase tracking-widest text-sky-600 dark:text-sky-400 font-semibold">Slide 02 // Architectural Foundation</span>
+        <h2 id="slide-1-heading" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mt-1">
+          What is the Document Object Model (DOM)?
+        </h2>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        
+        <!-- Left Column: Formal Bulleted Explanation -->
+        <div class="lg:col-span-6 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between stagger-2">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+              <i class="fa-solid fa-list-check text-sky-500" aria-hidden="true"></i>
+              <span>Key Conceptual Pillars</span>
+            </h3>
+
+            <!-- Structured Bulleted List -->
+            <ul class="space-y-4 text-sm text-slate-600 dark:text-slate-300 leading-relaxed list-disc pl-5 marker:text-sky-500">
+              <li>
+                <strong class="text-slate-900 dark:text-white">Programming Interface for Web Documents:</strong> 
+                The DOM is a W3C standard programming interface that represents an HTML or XML document as a logical, hierarchical tree of objects in browser memory.
+              </li>
+              <li>
+                <strong class="text-slate-900 dark:text-white">Everything is a Node:</strong> 
+                Every part of the document—the document itself, HTML elements (<code>&lt;article&gt;</code>, <code>&lt;ul&gt;</code>), attributes (<code>href</code>, <code>aria-label</code>), and text strings—is modeled as a distinct <code>Node</code> object.
+              </li>
+              <li>
+                <strong class="text-slate-900 dark:text-white">Live Bridge Between HTML &amp; JavaScript:</strong> 
+                The DOM is <em>not</em> the raw HTML source file and it is <em>not</em> part of the core ECMAScript language; rather, it is a browser-provided Web API that lets JavaScript inspect and mutate live page state.
+              </li>
+              <li>
+                <strong class="text-slate-900 dark:text-white">Parent, Child &amp; Sibling Relationships:</strong> 
+                Nodes are linked via pointers such as <code>parentNode</code>, <code>children</code>, and <code>nextElementSibling</code>, enabling fast tree traversal and targeted updates.
+              </li>
+              <li>
+                <strong class="text-slate-900 dark:text-white">Dynamic Rendering Pipeline:</strong> 
+                When JavaScript modifies a DOM node, the browser automatically recalculates styles, updates layout geometry (reflow), and repaints pixels on the screen.
+              </li>
+            </ul>
+          </div>
+
+          <!-- Key Takeaway Callout -->
+          <div class="mt-6 p-4 rounded-xl bg-slate-100 dark:bg-slate-800/70 border-l-4 border-sky-500 text-xs text-slate-600 dark:text-slate-300">
+            <strong class="text-slate-900 dark:text-white block mb-0.5">Formula for Web Interactivity:</strong>
+            <code>HTML Markup (Structure) + CSSOM (Styling) + DOM API (JavaScript Logic) = Rendered Interactive View</code>
+          </div>
+        </div>
+
+        <!-- Right Column: Interactive Visual DOM Tree Explorer -->
+        <div class="lg:col-span-6 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between stagger-3">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-Sitemap text-indigo-500" aria-hidden="true"></i>
+                <span>Interactive DOM Tree Inspector</span>
+              </h3>
+              <span class="text-xs text-slate-400">Click any node below</span>
+            </div>
+
+            <!-- Interactive Hierarchy Diagram -->
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 flex flex-col items-center space-y-3">
+              
+              <!-- Level 1: Document -->
+              <button type="button" onclick="inspectDomNode('document')" id="node-document" class="dom-node-btn selected-node px-4 py-1.5 rounded-lg bg-slate-800 text-white font-mono text-xs font-semibold">
+                #document (Root)
+              </button>
+              <div class="w-0.5 h-3 bg-slate-300 dark:bg-slate-700"></div>
+
+              <!-- Level 2: HTML -->
+              <button type="button" onclick="inspectDomNode('html')" id="node-html" class="dom-node-btn px-4 py-1.5 rounded-lg bg-sky-600 text-white font-mono text-xs font-semibold">
+                &lt;html lang="en"&gt;
+              </button>
+              <div class="w-48 h-3 border-t-2 border-l-2 border-r-2 border-slate-300 dark:border-slate-700 rounded-t"></div>
+
+              <!-- Level 3: Head & Body -->
+              <div class="flex justify-between w-64 gap-4">
+                <div class="flex flex-col items-center">
+                  <button type="button" onclick="inspectDomNode('head')" id="node-head" class="dom-node-btn px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-mono text-xs font-semibold">
+                    &lt;head&gt;
+                  </button>
+                  <div class="w-0.5 h-3 bg-slate-300 dark:bg-slate-700"></div>
+                  <button type="button" onclick="inspectDomNode('title')" id="node-title" class="dom-node-btn px-2.5 py-1 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-mono text-[11px]">
+                    &lt;title&gt;
+                  </button>
+                </div>
+
+                <div class="flex flex-col items-center">
+                  <button type="button" onclick="inspectDomNode('body')" id="node-body" class="dom-node-btn px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-mono text-xs font-semibold">
+                    &lt;body&gt;
+                  </button>
+                  <div class="w-0.5 h-3 bg-slate-300 dark:bg-slate-700"></div>
+                  <button type="button" onclick="inspectDomNode('article')" id="node-article" class="dom-node-btn px-2.5 py-1 rounded bg-emerald-600 text-white font-mono text-[11px] font-semibold">
+                    &lt;article.profile-card&gt;
+                  </button>
+                  <div class="w-32 h-2.5 border-t-2 border-l-2 border-r-2 border-slate-300 dark:border-slate-700 mt-1"></div>
+                  <div class="flex gap-2 mt-1">
+                    <button type="button" onclick="inspectDomNode('h1')" id="node-h1" class="dom-node-btn px-2 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-amber-700 dark:text-amber-300 font-mono text-[11px]">
+                      &lt;h1&gt;Harshit&lt;/h1&gt;
+                    </button>
+                    <button type="button" onclick="inspectDomNode('ul')" id="node-ul" class="dom-node-btn px-2 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-amber-700 dark:text-amber-300 font-mono text-[11px]">
+                      &lt;ul.skills&gt;
+                    </button>
+                    <button type="button" onclick="inspectDomNode('a')" id="node-a" class="dom-node-btn px-2 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-amber-700 dark:text-amber-300 font-mono text-[11px]">
+                      &lt;a.profile-link&gt;
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Inspector Output Box -->
+          <div id="dom-inspector-panel" class="mt-4 p-4 rounded-xl bg-slate-900 text-slate-100 font-mono text-xs space-y-1.5 border border-slate-800">
+            <div class="flex items-center justify-between text-sky-400 font-semibold">
+              <span id="inspector-node-title">Node: #document (Document Object)</span>
+              <span id="inspector-node-type" class="px-2 py-0.5 rounded bg-sky-500/20 text-[10px]">nodeType: 9</span>
+            </div>
+            <p id="inspector-node-desc" class="text-slate-300 font-sans text-xs leading-relaxed">
+              The root entry point of the DOM tree. Global methods like <code class="text-amber-300">document.querySelector()</code> and <code class="text-amber-300">document.createElement()</code> are invoked here.
+            </p>
+            <div id="inspector-node-code" class="pt-1 text-[11px] text-emerald-400">
+              JS Access: window.document
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SLIDE 3: CORE CAPABILITIES & BULLETED BREAKDOWN                   -->
+    <!-- ================================================================= -->
+    <section id="slide-2" class="slide-section" aria-labelledby="slide-2-heading">
+      <div class="mb-6 stagger-1">
+        <span class="text-xs font-mono uppercase tracking-widest text-indigo-600 dark:text-indigo-400 font-semibold">Slide 03 // Mechanics &amp; Best Practices</span>
+        <h2 id="slide-2-heading" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mt-1">
+          Core DOM Capabilities &amp; Engineering Patterns
+        </h2>
+      </div>
+
+      <!-- 4 Bulleted Feature Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Pillar 1: Selection & Traversal -->
+        <article class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm stagger-2">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold">
+              <i class="fa-solid fa-crosshairs" aria-hidden="true"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">1. Querying &amp; Tree Traversal</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Locating elements with CSS precision</p>
+            </div>
+          </div>
+          <ul class="space-y-2.5 text-sm text-slate-600 dark:text-slate-300 list-disc pl-5 marker:text-sky-500">
+            <li>Use <code>querySelector()</code> and <code>querySelectorAll()</code> for flexible CSS selector matching across classes, attributes, and pseudo-states.</li>
+            <li>Note that <code>querySelectorAll()</code> returns a <strong>static <code>NodeList</code></strong>, whereas legacy methods like <code>getElementsByClassName()</code> return a <strong>live <code>HTMLCollection</code></strong>.</li>
+            <li>Traverse upward securely with <code>element.closest(selector)</code> and downward or sideways with <code>children</code> and <code>nextElementSibling</code>.</li>
+          </ul>
+        </article>
+
+        <!-- Pillar 2: Dynamic DOM Mutation -->
+        <article class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm stagger-3">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+              <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">2. Safe Content &amp; Node Mutation</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Creating, updating, and removing nodes</p>
+            </div>
+          </div>
+          <ul class="space-y-2.5 text-sm text-slate-600 dark:text-slate-300 list-disc pl-5 marker:text-indigo-500">
+            <li>Prefer <code>textContent</code> over <code>innerHTML</code> when inserting user-supplied strings to prevent <strong>Cross-Site Scripting (XSS)</strong> vulnerabilities.</li>
+            <li>Construct complex subtrees off-screen using <code>document.createElement()</code> and <code>DocumentFragment</code> to minimize layout thrashing.</li>
+            <li>Mutate classes cleanly through the <code>classList</code> API (<code>add</code>, <code>remove</code>, <code>toggle</code>, <code>replace</code>) instead of overwriting class strings.</li>
+          </ul>
+        </article>
+
+        <!-- Pillar 3: Event Propagation & Delegation -->
+        <article class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm stagger-4">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+              <i class="fa-solid fa-bolt" aria-hidden="true"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">3. Event Architecture &amp; Bubbling</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Responding to user and browser actions</p>
+            </div>
+          </div>
+          <ul class="space-y-2.5 text-sm text-slate-600 dark:text-slate-300 list-disc pl-5 marker:text-emerald-500">
+            <li>DOM events travel through three phases: <strong>Capturing Phase</strong> (root down to target), <strong>Target Phase</strong>, and <strong>Bubbling Phase</strong> (target back up to root).</li>
+            <li>Implement <strong>Event Delegation</strong> by attaching a single <code>addEventListener()</code> to a parent container and inspecting <code>event.target</code>.</li>
+            <li>Control default browser behaviors with <code>event.preventDefault()</code> and halt upward bubbling when necessary via <code>event.stopPropagation()</code>.</li>
+          </ul>
+        </article>
+
+        <!-- Pillar 4: Accessibility (AOM) & Performance -->
+        <article class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm stagger-5">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+              <i class="fa-solid fa-universal-access" aria-hidden="true"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">4. Accessibility Tree &amp; Reflow Optimization</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Screen readers and 60fps rendering</p>
+            </div>
+          </div>
+          <ul class="space-y-2.5 text-sm text-slate-600 dark:text-slate-300 list-disc pl-5 marker:text-amber-500">
+            <li>Alongside the visual DOM, browsers expose an <strong>Accessibility Object Model (AOM)</strong> powered by semantic tags and <code>aria-*</code> attributes.</li>
+            <li>Synchronize dynamic UI state changes with attributes like <code>aria-expanded</code>, <code>aria-label</code>, and <code>aria-live="polite"</code>.</li>
+            <li>Batch DOM reads (e.g., <code>getBoundingClientRect()</code>) before DOM writes to avoid forced synchronous layouts.</li>
+          </ul>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SLIDE 4: JAVASCRIPT DOM API REFERENCE TABLE                       -->
+    <!-- ================================================================= -->
+    <section id="slide-3" class="slide-section" aria-labelledby="slide-3-heading">
+      <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-5 stagger-1">
+        <div>
+          <span class="text-xs font-mono uppercase tracking-widest text-emerald-600 dark:text-emerald-400 font-semibold">Slide 04 // Structured Specification</span>
+          <h2 id="slide-3-heading" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mt-1">
+            JavaScript DOM API Reference Table
+          </h2>
+        </div>
+
+        <!-- Search Input & Category Filter Buttons for the Table -->
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true"></i>
+            <input 
+              type="search" 
+              id="dom-table-search" 
+              oninput="searchDomTable(this.value)"
+              placeholder="Search method or use case..." 
+              aria-label="Search DOM API reference table"
+              class="pl-8 pr-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500">
+          </div>
+          <div class="flex flex-wrap gap-1.5" role="group" aria-label="Filter DOM table by category">
+            <button type="button" onclick="filterDomTable('all')" class="table-filter-btn active-filter px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 text-white transition" data-category="all">
+              All (8)
+            </button>
+            <button type="button" onclick="filterDomTable('Selection')" class="table-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 transition" data-category="Selection">
+              Selection
+            </button>
+            <button type="button" onclick="filterDomTable('Manipulation')" class="table-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 transition" data-category="Manipulation">
+              Manipulation
+            </button>
+            <button type="button" onclick="filterDomTable('Attributes & Styles')" class="table-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 transition" data-category="Attributes & Styles">
+              Attributes &amp; Styles
+            </button>
+            <button type="button" onclick="filterDomTable('Events')" class="table-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 transition" data-category="Events">
+              Events
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accessible, Formal HTML Table Explaining the DOM -->
+      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden stagger-2">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse" aria-label="JavaScript Document Object Model Methods and Properties Reference">
+            <thead>
+              <tr class="bg-slate-100/90 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <th scope="col" class="py-3.5 px-4">DOM Method / Property</th>
+                <th scope="col" class="py-3.5 px-4">Category</th>
+                <th scope="col" class="py-3.5 px-4">Syntax Example</th>
+                <th scope="col" class="py-3.5 px-4">Return Value</th>
+                <th scope="col" class="py-3.5 px-4">Primary Engineering Use Case</th>
+              </tr>
+            </thead>
+            <tbody id="dom-table-body" class="divide-y divide-slate-200/70 dark:divide-slate-800 text-xs sm:text-sm">
+              
+              <tr class="dom-table-row hover:bg-sky-50/40 dark:hover:bg-slate-800/40 transition" data-cat="Selection">
+                <td class="py-3 px-4 font-mono font-semibold text-sky-600 dark:text-sky-400">document.querySelector()</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">Selection</span></td>
+                <td class="py-3 px-4 font-mono text-xs text-slate-700 dark:text-slate-300"><code>document.querySelector('.profile-card')</code></td>
+                <td class="py-3 px-4 font-mono text-xs text-emerald-600 dark:text-emerald-400">Element | null</td>
+                <td class="py-3 px-4 text-slate-600 dark:text-slate-300">Selects the first DOM element matching any valid CSS selector string.</td>
+              </tr>
+
+              <tr class="dom-table-row hover:bg-sky-50/40 dark:hover:bg-slate-800/40 transition" data-cat="Selection">
+                <td class="py-3 px-4 font-mono font-semibold text-sky-600 dark:text-sky-400">document.querySelectorAll()</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">Selection</span></td>
+                <td class="py-3 px-4 font-mono text-xs text-slate-700 dark:text-slate-300"><code>document.querySelectorAll('.skills-list li')</code></td>
+                <td class="py-3 px-4 font-mono text-xs text-emerald-600 dark:text-emerald-400">NodeList (Static)</td>
+                <td class="py-3 px-4 text-slate-600 dark:text-slate-300">Retrieves all matching elements as an iterable collection (supports <code>.forEach()</code>).</td>
+              </tr>
+
+              <tr class="dom-table-row hover:bg-sky-50/40 dark:hover:bg-slate-800/40 transition" data-cat="Manipulation">
+                <td class="py-3 px-4 font-mono font-semibold text-indigo-600 dark:text-indigo-400">document.createElement()</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">Manipulation</span></td>
+                <td class="py-3 px-4 font-mono text-xs text-slate-700 dark:text-slate-300"><code>const li = document.createElement('li')</code></td>
+                <td class="py-3 px-4 font-mono text-xs text-emerald-600 dark:text-emerald-400">HTMLElement</td>
+                <td class="py-3 px-4 text-slate-600 dark:text-slate-300">Instantiates a new detached HTML element node in memory ready for configuration.</td>
+              </tr>
+
+              <tr class="dom-table-row hover:bg-sky-50/40 dark:hover:bg-slate-800/40 transition" data-cat="Manipulation">
+                <td class="py-3 px-4 font-mono font-semibold text-indigo-600 dark:text-indigo-400">element.append()</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">Manipulation</span></td>
+                <td class="py-3 px-4 font-mono text-xs text-slate-700 dark:text-slate-300"><code>list.append(newSkillNode)</code></td>
+                <td class="py-3 px-4 font-mono text-xs text-slate-400">undefined</td>
+                <td class="py-3 px-4 text-slate-600 dark:text-slate-300">Inserts one or more Node objects or DOMStrings after the last child of a parent element.</td>
+              </tr>
+
+              <tr class="dom-table-row hover:bg-sky-50/40 dark:hover:bg-slate-800/40 transition" data-cat="Manipulation">
+                <td class="py-3 px-4 font-mono font-semibold text-indigo-600 dark:text-indigo-400">node.textContent</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">Manipulation</span></td>
+                <td class="py-3 px-4 font-mono text-xs text-slate-700 dark:text-slate-300"><code>heading.textContent = 'Harshit'</code></td>
+                <td class="py-3 px-4 font-mono text-xs text-emerald-600 dark:text-emerald-400">String</td>
+                <td class="py-3 px-4 text-slate-600 dark:text-slate-300">Safely reads or updates raw text content without parsing HTML tags (prevents XSS).</td>
+              </tr>
+
+              <tr class="dom-table-row hover:bg-sky-50/40 dark:hover:bg-slate-800/40 transition" data-cat="Attributes & Styles">
+                <td class="py-3 px-4 font-mono font-semibold text-amber-600 dark:text-amber-400">element.setAttribute()</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">Attributes &amp; Styles</span></td>
+                <td class="py-3 px-4 font-mono text-xs text-slate-700 dark:text-slate-300"><code>link.setAttribute('aria-label', 'GitHub')</code></td>
+                <td class="py-3 px-4 font-mono text-xs text-slate-400">undefined</td>
+                <td class="py-3 px-4 text-slate-600 dark:text-slate-300">Sets or updates HTML attributes including accessibility ARIA properties and data attributes.</td>
+              </tr>
+
+              <tr class="dom-table-row hover:bg-sky-50/40 dark:hover:bg-slate-800/40 transition" data-cat="Attributes & Styles">
+                <td class="py-3 px-4 font-mono font-semibold text-amber-600 dark:text-amber-400">element.classList</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">Attributes &amp; Styles</span></td>
+                <td class="py-3 px-4 font-mono text-xs text-slate-700 dark:text-slate-300"><code>card.classList.toggle('highlighted')</code></td>
+                <td class="py-3 px-4 font-mono text-xs text-emerald-600 dark:text-emerald-400">DOMTokenList</td>
+                <td class="py-3 px-4 text-slate-600 dark:text-slate-300">Provides methods (<code>add</code>, <code>remove</code>, <code>toggle</code>) to manipulate CSS state classes cleanly.</td>
+              </tr>
+
+              <tr class="dom-table-row hover:bg-sky-50/40 dark:hover:bg-slate-800/40 transition" data-cat="Events">
+                <td class="py-3 px-4 font-mono font-semibold text-emerald-600 dark:text-emerald-400">target.addEventListener()</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Events</span></td>
+                <td class="py-3 px-4 font-mono text-xs text-slate-700 dark:text-slate-300"><code>btn.addEventListener('click', handleClick)</code></td>
+                <td class="py-3 px-4 font-mono text-xs text-slate-400">undefined</td>
+                <td class="py-3 px-4 text-slate-600 dark:text-slate-300">Registers an asynchronous callback function triggered when the specified event fires on the node.</td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SLIDE 5: INTERACTIVE DOM SANDBOX & GIT PR WORKFLOW SUMMARY        -->
+    <!-- ================================================================= -->
+    <section id="slide-4" class="slide-section" aria-labelledby="slide-4-heading">
+      <div class="mb-6 stagger-1">
+        <span class="text-xs font-mono uppercase tracking-widest text-amber-600 dark:text-amber-400 font-semibold">Slide 05 // Live Demonstration &amp; Git Workflow</span>
+        <h2 id="slide-4-heading" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mt-1">
+          Interactive DOM Manipulation Sandbox &amp; PR Summary
+        </h2>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+        
+        <!-- Left Column: Live Interactive DOM Playground -->
+        <div class="lg:col-span-7 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between stagger-2">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-terminal text-sky-500" aria-hidden="true"></i>
+                <span>Live DOM Mutation Playground</span>
+              </h3>
+              <span class="text-xs font-mono text-slate-400">Mutates Profile Card &amp; Preview</span>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
+              <button type="button" onclick="sandboxAppendSkill()" class="p-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/70 dark:hover:bg-sky-900/80 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 text-xs font-semibold transition flex flex-col items-center gap-1">
+                <i class="fa-solid fa-plus-circle text-sm" aria-hidden="true"></i>
+                <span>Append Skill &lt;li&gt;</span>
+              </button>
+              <button type="button" onclick="sandboxUpdateBioText()" class="p-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/70 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold transition flex flex-col items-center gap-1">
+                <i class="fa-solid fa-pen-nib text-sm" aria-hidden="true"></i>
+                <span>Update textContent</span>
+              </button>
+              <button type="button" onclick="sandboxUpdateAria()" class="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:hover:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold transition flex flex-col items-center gap-1">
+                <i class="fa-solid fa-universal-access text-sm" aria-hidden="true"></i>
+                <span>Inspect aria-label</span>
+              </button>
+              <button type="button" onclick="sandboxReset()" class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-semibold transition flex flex-col items-center gap-1">
+                <i class="fa-solid fa-rotate-left text-sm" aria-hidden="true"></i>
+                <span>Reset Sandbox</span>
+              </button>
+            </div>
+
+            <!-- Target Preview Container -->
+            <div id="sandbox-target-card" class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border-2 border-dashed border-slate-300 dark:border-slate-800 transition-all duration-300">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-mono uppercase text-slate-400">Live Target Node: <code>#sandbox-skill-list</code></span>
+                <span id="sandbox-node-count" class="text-xs font-mono px-2 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400">children.length: 3</span>
+              </div>
+              <p id="sandbox-bio-preview" class="text-xs text-slate-600 dark:text-slate-300 mb-3 italic">
+                "Harshit — Frontend &amp; CS Engineering Developer building accessible components for Project Atlas."
+              </p>
+              <ul id="sandbox-skill-list" class="flex flex-wrap gap-2 my-2">
+                <li class="px-3 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">HTML5 &amp; CSS Grid/Flexbox</li>
+                <li class="px-3 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">JavaScript &amp; TypeScript</li>
+                <li class="px-3 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">Git &amp; Linux CLI</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Executed JavaScript Code Log -->
+          <div class="mt-4 p-4 rounded-xl bg-slate-900 text-slate-100 font-mono text-xs border border-slate-800">
+            <div class="text-slate-400 text-[11px] mb-1">// Executed DOM JavaScript Statement:</div>
+            <pre id="sandbox-code-log" class="text-emerald-400 overflow-x-auto whitespace-pre-wrap">const list = document.querySelector('#sandbox-skill-list');
+// Click any button above to execute live DOM API calls...</pre>
+          </div>
+        </div>
+
+        <!-- Right Column: Project Atlas Git Branching Strategy & PR Summary -->
+        <div class="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between stagger-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+              <i class="fa-solid fa-code-pull-request text-emerald-500" aria-hidden="true"></i>
+              <span>Project Atlas PR &amp; Branching Strategy</span>
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+              Built using the <strong>Feature Branching Strategy (GitHub Flow)</strong> on <code>feature/profile-card</code> to protect <code>main</code> through peer/self code review before merging.
+            </p>
+
+            <!-- Bullet Summary of Git Commands Executed -->
+            <ul class="space-y-2.5 text-xs font-mono bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+              <li class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-emerald-500" aria-hidden="true"></i>
+                <span>git switch -c feature/profile-card</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-emerald-500" aria-hidden="true"></i>
+                <span>git commit -m "Add Project Atlas profile card"</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-emerald-500" aria-hidden="true"></i>
+                <span>PR Opened: feature/profile-card &rarr; main</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-emerald-500" aria-hidden="true"></i>
+                <span>Self-Review: Requested aria-label on link</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-emerald-500" aria-hidden="true"></i>
+                <span>git commit -m "Improve profile link accessibility"</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <button 
+              type="button" 
+              onclick="goToSlide(0)" 
+              class="inline-flex items-center gap-2 text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline">
+              <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+              <span>Return to Slide 1 (Profile Card)</span>
+            </button>
+            <span class="text-[11px] font-mono text-slate-400">Ready for GitHub Commit</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Collapsible Speaker Notes Drawer for Live Presenting -->
+    <aside id="speaker-notes-drawer" class="hidden mt-6 p-4 rounded-2xl bg-indigo-950/90 text-indigo-100 border border-indigo-700/60 shadow-lg transition-all" aria-label="Presenter Speaker Notes">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-xs font-mono uppercase tracking-wider text-indigo-300 font-bold flex items-center gap-2">
+          <i class="fa-solid fa-microphone-lines" aria-hidden="true"></i>
+          <span>Presenter Speaker Notes</span>
+        </span>
+        <button type="button" onclick="toggleSpeakerNotes()" class="text-xs text-indigo-300 hover:text-white">Hide</button>
+      </div>
+      <p id="speaker-notes-content" class="text-xs sm:text-sm leading-relaxed text-indigo-100"></p>
+    </aside>
+
+  </main>
+
+  <!-- Bottom Presentation Controls Bar -->
+  <footer class="sticky bottom-0 z-40 backdrop-blur-md bg-white/85 dark:bg-slate-900/85 border-t border-slate-200/80 dark:border-slate-800/80 px-4 sm:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      
+      <!-- Slide Counter -->
+      <div class="flex items-center gap-3">
+        <span id="slide-counter-badge" class="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 font-mono text-xs font-bold text-slate-700 dark:text-slate-300">
+          Slide 1 of 5
+        </span>
+        <span id="slide-title-footer" class="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline">
+          Project Atlas — Developer Profile Card
+        </span>
+      </div>
+
+      <!-- Interactive Slide Progress Dots -->
+      <div class="flex items-center gap-2" role="tablist" aria-label="Slide pagination dots">
+        <button type="button" onclick="goToSlide(0)" class="slide-dot w-2.5 h-2.5 rounded-full transition-all" aria-label="Go to slide 1"></button>
+        <button type="button" onclick="goToSlide(1)" class="slide-dot w-2.5 h-2.5 rounded-full transition-all" aria-label="Go to slide 2"></button>
+        <button type="button" onclick="goToSlide(2)" class="slide-dot w-2.5 h-2.5 rounded-full transition-all" aria-label="Go to slide 3"></button>
+        <button type="button" onclick="goToSlide(3)" class="slide-dot w-2.5 h-2.5 rounded-full transition-all" aria-label="Go to slide 4"></button>
+        <button type="button" onclick="goToSlide(4)" class="slide-dot w-2.5 h-2.5 rounded-full transition-all" aria-label="Go to slide 5"></button>
+      </div>
+
+      <!-- Prev / Next Navigation Buttons -->
+      <div class="flex items-center gap-2">
+        <button 
+          type="button" 
+          id="prev-slide-btn"
+          onclick="changeSlide(-1)" 
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition disabled:opacity-40"
+          aria-label="Previous slide">
+          <i class="fa-solid fa-chevron-left text-[10px]" aria-hidden="true"></i>
+          <span>Prev</span>
+        </button>
+        <button 
+          type="button" 
+          id="next-slide-btn"
+          onclick="changeSlide(1)" 
+          class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white shadow-sm shadow-sky-500/20 transition"
+          aria-label="Next slide">
+          <span>Next</span>
+          <i class="fa-solid fa-chevron-right text-[10px]" aria-hidden="true"></i>
+        </button>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- ================================================================= -->
+  <!-- CUSTOMIZE PROFILE MODAL (EASY PERSONALIZATION BEFORE COMMITTING)  -->
+  <!-- ================================================================= -->
+  <div id="customize-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="modal-heading">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+        <h2 id="modal-heading" class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-user-gear text-sky-500" aria-hidden="true"></i>
+          <span>Customize Your Profile Card</span>
+        </h2>
+        <button type="button" onclick="closeCustomizeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1" aria-label="Close modal">
+          <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <form id="customize-form" onsubmit="saveProfileCustomization(event)" class="space-y-4 mt-4 text-xs sm:text-sm">
+        <div>
+          <label for="input-name" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Your Name</label>
+          <input type="text" id="input-name" required value="Harshit" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+
+        <div>
+          <label for="input-role" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Your Role</label>
+          <input type="text" id="input-role" required value="Frontend & CS Engineering Developer (Project Atlas)" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+
+        <div>
+          <label for="input-bio" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Short Introduction</label>
+          <textarea id="input-bio" rows="3" required class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500">Focused on engineering accessible, high-performance user interfaces and scalable web architectures for Project Atlas using semantic HTML5, modern CSS layout systems, and reactive JavaScript DOM APIs.</textarea>
+        </div>
+
+        <div>
+          <label for="input-skills" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Three Skills (comma-separated)</label>
+          <input type="text" id="input-skills" required value="HTML5 & CSS Grid/Flexbox, JavaScript & TypeScript, Git & Linux CLI" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+
+        <div>
+          <label for="input-github" class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">GitHub or Portfolio URL</label>
+          <input type="url" id="input-github" required value="https://github.com/harxhit8-stack" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500">
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <button type="button" onclick="closeCustomizeModal()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold shadow-sm">
+            Apply via DOM API
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- APPLICATION & PRESENTATION CONTROLLER SCRIPT                      -->
+  <!-- ================================================================= -->
+  <script>
+    // Slide Metadata & Speaker Notes
+    const SLIDES_META = [
+      {
+        title: "Project Atlas — Developer Profile Card (Harshit)",
+        notes: "Welcome everyone. On Slide 1, we have Harshit's Project Atlas developer profile card built with semantic HTML5 (<article>, <h1>, <ul>, <a>) and full WAI-ARIA accessibility attributes, linked to github.com/harxhit8-stack."
+      },
+      {
+        title: "Introduction to the JavaScript DOM & Tree Hierarchy",
+        notes: "Slide 2 explains the Document Object Model. Emphasize that the DOM is an in-memory object tree created by the browser parser. Click the nodes on the right to demonstrate how #document branches down to Harshit's profile card elements."
+      },
+      {
+        title: "Core DOM Capabilities & Engineering Patterns",
+        notes: "Slide 3 covers our four key engineering pillars: querying with CSS selectors, safe manipulation using textContent over innerHTML to prevent XSS, event bubbling & delegation, and syncing with the Accessibility Object Model."
+      },
+      {
+        title: "JavaScript DOM API Reference Table",
+        notes: "Slide 4 provides a structured reference table of essential DOM methods and properties. Use the live search bar or category pills during Q&A to filter between Selection, Manipulation, Attributes, and Events."
+      },
+      {
+        title: "Interactive Live DOM Sandbox & Git PR Summary",
+        notes: "Slide 5 demonstrates the DOM API in real time. Click 'Append Skill <li>', 'Update textContent', or 'Inspect aria-label' to mutate the live DOM tree and view the exact JavaScript code executed."
+      }
+    ];
+
+    let currentSlideIndex = 0;
+    const totalSlides = SLIDES_META.length;
+
+    // Initialize Presentation State
+    function updatePresentationUI() {
+      const sections = document.querySelectorAll('.slide-section');
+      const navButtons = document.querySelectorAll('.nav-tab-btn');
+      const dots = document.querySelectorAll('.slide-dot');
+
+      sections.forEach((sec, idx) => {
+        if (idx === currentSlideIndex) {
+          sec.classList.add('active');
+        } else {
+          sec.classList.remove('active');
+        }
+      });
+
+      // Top Header Tab Highlight
+      navButtons.forEach((btn, idx) => {
+        if (idx === currentSlideIndex) {
+          btn.className = 'nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-sky-600 text-white shadow-sm';
+        } else {
+          btn.className = 'nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+        }
+      });
+
+      // Pagination Dots
+      dots.forEach((dot, idx) => {
+        if (idx === currentSlideIndex) {
+          dot.className = 'slide-dot w-6 h-2.5 rounded-full bg-sky-500 transition-all';
+        } else {
+          dot.className = 'slide-dot w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 transition-all';
+        }
+      });
+
+      // Top Progress Bar, Counter & Speaker Notes
+      const progressPercent = ((currentSlideIndex + 1) / totalSlides) * 100;
+      document.getElementById('slide-progress-bar').style.width = `${progressPercent}%`;
+      document.getElementById('top-progress-container').setAttribute('aria-valuenow', currentSlideIndex + 1);
+      document.getElementById('slide-counter-badge').textContent = `Slide ${currentSlideIndex + 1} of ${totalSlides}`;
+      document.getElementById('slide-title-footer').textContent = SLIDES_META[currentSlideIndex].title;
+      document.getElementById('speaker-notes-content').textContent = SLIDES_META[currentSlideIndex].notes;
+
+      // Prev/Next Button States
+      document.getElementById('prev-slide-btn').disabled = currentSlideIndex === 0;
+      const nextBtn = document.getElementById('next-slide-btn');
+      if (currentSlideIndex === totalSlides - 1) {
+        nextBtn.innerHTML = '<span>Restart</span><i class="fa-solid fa-rotate-right text-[10px]" aria-hidden="true"></i>';
+      } else {
+        nextBtn.innerHTML = '<span>Next</span><i class="fa-solid fa-chevron-right text-[10px]" aria-hidden="true"></i>';
+      }
+    }
+
+    function goToSlide(index) {
+      if (index >= 0 && index < totalSlides) {
+        currentSlideIndex = index;
+        updatePresentationUI();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    function changeSlide(direction) {
+      if (direction === 1 && currentSlideIndex === totalSlides - 1) {
+        goToSlide(0);
+      } else {
+        goToSlide(currentSlideIndex + direction);
+      }
+    }
+
+    // Keyboard Navigation Support for Presenting
+    document.addEventListener('keydown', (event) => {
+      // Ignore keyboard shortcuts if user is typing inside an input or textarea
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+      if (event.key === 'ArrowRight' || event.key === 'PageDown') {
+        event.preventDefault();
+        changeSlide(1);
+      } else if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+        event.preventDefault();
+        changeSlide(-1);
+      } else if (['1', '2', '3', '4', '5'].includes(event.key)) {
+        goToSlide(parseInt(event.key, 10) - 1);
+      } else if (event.key.toLowerCase() === 'f') {
+        toggleFullScreen();
+      }
+    });
+
+    // Slide 2: Interactive DOM Tree Node Inspector Data
+    const DOM_NODE_DATA = {
+      document: {
+        title: 'Node: #document (Document Root)',
+        type: 'nodeType: 9 (DOCUMENT_NODE)',
+        desc: 'The root entry point representing the entire web page loaded in the browser. Provides factory and query methods like querySelector() and createElement().',
+        code: 'JS Access: window.document'
+      },
+      html: {
+        title: 'Node: <html lang="en"> (Root Element)',
+        type: 'nodeType: 1 (ELEMENT_NODE)',
+        desc: 'The top-level Element node in the DOM hierarchy. Contains both the <head> metadata branch and the <body> visible content branch.',
+        code: 'JS Access: document.documentElement'
+      },
+      head: {
+        title: 'Node: <head> (Document Metadata)',
+        type: 'nodeType: 1 (ELEMENT_NODE)',
+        desc: 'Holds machine-readable information about the document, including title, character set, viewport settings, and stylesheets.',
+        code: 'JS Access: document.head'
+      },
+      title: {
+        title: 'Node: <title> (Page Title Element)',
+        type: 'nodeType: 1 (ELEMENT_NODE)',
+        desc: 'Contains a child Text Node representing the title shown in the browser tab and search results.',
+        code: 'JS Access: document.title = "Project Atlas"'
+      },
+      body: {
+        title: 'Node: <body> (Document Body)',
+        type: 'nodeType: 1 (ELEMENT_NODE)',
+        desc: 'Contains all rendered visual content, semantic sections, profile cards, tables, and interactive controls.',
+        code: 'JS Access: document.body'
+      },
+      article: {
+        title: 'Node: <article class="profile-card">',
+        type: 'nodeType: 1 (ELEMENT_NODE)',
+        desc: 'Semantic container encapsulating Harshit\'s self-contained Project Atlas developer profile component.',
+        code: 'JS Access: document.querySelector(".profile-card")'
+      },
+      h1: {
+        title: 'Node: <h1 class="profile-name">Harshit</h1>',
+        type: 'nodeType: 1 (ELEMENT_NODE)',
+        desc: 'Primary heading element displaying the developer name ("Harshit"). Mutated safely via the .textContent property.',
+        code: 'JS Access: document.querySelector(".profile-name").textContent // "Harshit"'
+      },
+      ul: {
+        title: 'Node: <ul class="skills-list">',
+        type: 'nodeType: 1 (ELEMENT_NODE)',
+        desc: 'Unordered list parent node containing Harshit\'s 3 core skill <li> items. Supports dynamic insertion via .append().',
+        code: 'JS Access: document.querySelectorAll(".skills-list li")'
+      },
+      a: {
+        title: 'Node: <a href="https://github.com/harxhit8-stack">',
+        type: 'nodeType: 1 (ELEMENT_NODE)',
+        desc: 'Anchor element linking to Harshit\'s GitHub profile with target="_blank", rel="noopener noreferrer", and an accessible aria-label.',
+        code: 'JS Access: link.getAttribute("aria-label")'
+      }
+    };
+
+    function inspectDomNode(nodeKey) {
+      const info = DOM_NODE_DATA[nodeKey];
+      if (!info) return;
+
+      document.querySelectorAll('.dom-node-btn').forEach(btn => btn.classList.remove('selected-node'));
+      const activeBtn = document.getElementById(`node-${nodeKey}`);
+      if (activeBtn) activeBtn.classList.add('selected-node');
+
+      document.getElementById('inspector-node-title').textContent = info.title;
+      document.getElementById('inspector-node-type').textContent = info.type;
+      document.getElementById('inspector-node-desc').textContent = info.desc;
+      document.getElementById('inspector-node-code').textContent = info.code;
+    }
+
+    // Slide 4: Filterable DOM Table
+    function filterDomTable(category) {
+      const rows = document.querySelectorAll('.dom-table-row');
+      const buttons = document.querySelectorAll('.table-filter-btn');
+
+      buttons.forEach(btn => {
+        if (btn.getAttribute('data-category') === category) {
+          btn.className = 'table-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 text-white transition';
+        } else {
+          btn.className = 'table-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 transition';
+        }
+      });
+
+      rows.forEach(row => {
+        const rowCat = row.getAttribute('data-cat');
+        if (category === 'all' || rowCat === category) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    function searchDomTable(query) {
+      const normalized = query.toLowerCase().trim();
+      const rows = document.querySelectorAll('.dom-table-row');
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(normalized) ? '' : 'none';
+      });
+    }
+
+    function toggleSpeakerNotes() {
+      const drawer = document.getElementById('speaker-notes-drawer');
+      const btn = document.getElementById('notes-toggle-btn');
+      const isHidden = drawer.classList.toggle('hidden');
+      btn.setAttribute('aria-expanded', !isHidden);
+    }
+
+    // Slide 5: Live DOM Manipulation Sandbox
+    const EXTRA_SKILLS = ['DOM Tree Traversal', 'Web Accessibility (WCAG)', 'React & Virtual DOM', 'Node.js Runtime', 'Responsive UI Architecture'];
+    let extraSkillIdx = 0;
+    let bioToggleState = false;
+
+    function sandboxAppendSkill() {
+      const skillName = EXTRA_SKILLS[extraSkillIdx % EXTRA_SKILLS.length];
+      extraSkillIdx++;
+
+      // 1. Update Sandbox List
+      const sandboxList = document.getElementById('sandbox-skill-list');
+      const newLi = document.createElement('li');
+      newLi.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-sky-500 text-white shadow-sm transition-all';
+      newLi.textContent = skillName;
+      sandboxList.append(newLi);
+
+      document.getElementById('sandbox-node-count').textContent = `children.length: ${sandboxList.children.length}`;
+
+      // 2. Log Exact DOM Code
+      document.getElementById('sandbox-code-log').textContent = 
+`const newSkill = document.createElement('li');
+newSkill.textContent = '${skillName}';
+document.querySelector('#sandbox-skill-list').append(newSkill);`;
+    }
+
+    function sandboxUpdateBioText() {
+      bioToggleState = !bioToggleState;
+      const bioPreview = document.getElementById('sandbox-bio-preview');
+      const card = document.getElementById('sandbox-target-card');
+      card.classList.toggle('ring-2', bioToggleState);
+      card.classList.toggle('ring-indigo-500/50', bioToggleState);
+
+      const updatedText = bioToggleState
+        ? '"Harshit — Updated live via node.textContent! Building reactive DOM interfaces at github.com/harxhit8-stack."'
+        : '"Harshit — Frontend & CS Engineering Developer building accessible components for Project Atlas."';
+
+      bioPreview.textContent = updatedText;
+
+      document.getElementById('sandbox-code-log').textContent = 
+`const bioNode = document.querySelector('#sandbox-bio-preview');
+bioNode.textContent = ${updatedText};`;
+    }
+
+    function sandboxUpdateAria() {
+      const linkEl = document.getElementById('profile-link-el');
+      const currentAria = linkEl.getAttribute('aria-label');
+      const currentHref = linkEl.getAttribute('href');
+      document.getElementById('sandbox-code-log').textContent = 
+`const portfolioLink = document.querySelector('.profile-link');
+portfolioLink.getAttribute('href');       // "${currentHref}"
+portfolioLink.getAttribute('aria-label'); // "${currentAria}"`;
+    }
+
+    function sandboxReset() {
+      const sandboxList = document.getElementById('sandbox-skill-list');
+      sandboxList.innerHTML = `
+        <li class="px-3 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">HTML5 &amp; CSS Grid/Flexbox</li>
+        <li class="px-3 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">JavaScript &amp; TypeScript</li>
+        <li class="px-3 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">Git &amp; Linux CLI</li>
+      `;
+      const bioPreview = document.getElementById('sandbox-bio-preview');
+      bioPreview.textContent = '"Harshit — Frontend & CS Engineering Developer building accessible components for Project Atlas."';
+      const card = document.getElementById('sandbox-target-card');
+      card.classList.remove('ring-2', 'ring-indigo-500/50');
+      bioToggleState = false;
+      document.getElementById('sandbox-node-count').textContent = 'children.length: 3';
+      document.getElementById('sandbox-code-log').textContent = '// Sandbox reset to Harshit\'s initial 3 skills.';
+    }
+
+    function sandboxToggleHighlight() {
+      const card = document.getElementById('sandbox-target-card');
+      const isHighlighted = card.classList.toggle('ring-4');
+      card.classList.toggle('ring-sky-500/40');
+      card.classList.toggle('bg-sky-50/50');
+      card.classList.toggle('dark:bg-sky-950/30');
+
+      document.getElementById('sandbox-code-log').textContent = 
+`const target = document.querySelector('#sandbox-target-card');
+target.classList.toggle('ring-4'); // Active: ${isHighlighted}`;
+    }
+
+    function sandboxUpdateAria() {
+      const linkEl = document.getElementById('profile-link-el');
+      const currentAria = linkEl.getAttribute('aria-label');
+      document.getElementById('sandbox-code-log').textContent = 
+`const portfolioLink = document.querySelector('.profile-link');
+portfolioLink.getAttribute('aria-label');
+// Returns: "${currentAria}"`;
+    }
+
+    function sandboxReset() {
+      const sandboxList = document.getElementById('sandbox-skill-list');
+      sandboxList.innerHTML = `
+        <li class="px-3 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">JavaScript &amp; DOM API</li>
+        <li class="px-3 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">Semantic HTML5 &amp; CSS3</li>
+        <li class="px-3 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">Git &amp; PR Workflows</li>
+      `;
+      const card = document.getElementById('sandbox-target-card');
+      card.classList.remove('ring-4', 'ring-sky-500/40', 'bg-sky-50/50', 'dark:bg-sky-950/30');
+      document.getElementById('sandbox-node-count').textContent = 'children.length: 3';
+      document.getElementById('sandbox-code-log').textContent = '// Sandbox reset to initial 3 skills.';
+    }
+
+    // Profile Customization Modal Logic
+    function openCustomizeModal() {
+      const modal = document.getElementById('customize-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeCustomizeModal() {
+      const modal = document.getElementById('customize-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveProfileCustomization(event) {
+      event.preventDefault();
+      const name = document.getElementById('input-name').value.trim();
+      const role = document.getElementById('input-role').value.trim();
+      const bio = document.getElementById('input-bio').value.trim();
+      const skillsRaw = document.getElementById('input-skills').value;
+      const github = document.getElementById('input-github').value.trim();
+
+      // Update DOM elements on Slide 1
+      document.querySelector('.profile-name').textContent = name;
+      document.getElementById('profile-role-display').textContent = role;
+      document.getElementById('profile-bio-display').textContent = bio;
+
+      // Update Avatar Initials
+      const initials = name.split(' ').map(part => part[0]).join('').substring(0, 2).toUpperCase();
+      document.getElementById('profile-avatar').textContent = initials || 'DV';
+
+      // Update Skills List
+      const skillsArray = skillsRaw.split(',').map(s => s.trim()).filter(Boolean);
+      const skillsListEl = document.getElementById('profile-skills-list');
+      skillsListEl.innerHTML = '';
+      skillsArray.forEach(skill => {
+        const li = document.createElement('li');
+        li.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-50 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 border border-sky-200/70 dark:border-sky-800/70 flex items-center gap-1.5';
+        li.innerHTML = `<i class="fa-solid fa-code text-sky-500" aria-hidden="true"></i><span></span>`;
+        li.querySelector('span').textContent = skill;
+        skillsListEl.append(li);
+      });
+
+      // Update GitHub Link & Accessible aria-label
+      const linkEl = document.getElementById('profile-link-el');
+      linkEl.setAttribute('href', github);
+      linkEl.setAttribute('aria-label', `Visit ${name}'s GitHub profile (opens in a new tab)`);
+
+      closeCustomizeModal();
+      goToSlide(0);
+    }
+
+    // Theme Toggle (Dark / Light Mode)
+    function toggleTheme() {
+      const htmlEl = document.documentElement;
+      const isDark = htmlEl.classList.toggle('dark');
+      const icon = document.getElementById('theme-icon');
+      icon.className = isDark ? 'fa-solid fa-sun text-amber-400' : 'fa-solid fa-moon text-slate-700';
+    }
+
+    // Fullscreen Presentation Toggle
+    function toggleFullScreen() {
+      const icon = document.getElementById('fullscreen-icon');
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+        if (icon) icon.className = 'fa-solid fa-compress text-xs';
+      } else {
+        document.exitFullscreen().catch(() => {});
+        if (icon) icon.className = 'fa-solid fa-expand text-xs';
+      }
+    }
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      updatePresentationUI();
+    });
+  </script>
+</body>
+</html>
